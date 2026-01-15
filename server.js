@@ -2,7 +2,6 @@ require("dotenv").config();
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
-const axios = require("axios");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -21,21 +20,38 @@ app.post("/summarize", async (req, res) => {
 
   try {
     const response = await fetch("https://router.huggingface.co", {
-      headers: { Authorization: `Bearer ${process.env.HF_API_KEY}` },
+      headers: { Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}` },
       method: "POST",
       body: JSON.stringify({
-        model: "facebook/bart-large-cnn",
+        model: "sshleifer/distilbart-cnn-12-6",   // free summarization model
         inputs: text
       })
     });
 
+    // If HF returns a non-200 status, read the text safely
+    if (!response.ok) {
+      const errText = await response.text();
+      return res.status(500).json({ error: `HF error: ${errText}` });
+    }
+
     const data = await response.json();
 
+    // HF sometimes returns { error: "..." }
     if (data.error) {
       return res.status(500).json({ error: data.error });
     }
 
-    res.json({ summary: data[0].summary_text });
+    // HF returns an array with summary_text
+    if (Array.isArray(data) && data[0]?.summary_text) {
+      return res.json({ summary: data[0].summary_text });
+    }
+
+    // Unexpected format fallback
+    return res.status(500).json({
+      error: "Unexpected HF response format",
+      data
+    });
+
   } catch (error) {
     console.error("Error summarizing text:", error.message);
     res.status(500).json({ error: "Failed to summarize text." });
