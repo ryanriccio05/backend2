@@ -20,16 +20,18 @@ app.post("/summarize", async (req, res) => {
   }
 
   try {
-    const response = await axios.post(
-      "https://api-inference.huggingface.co/models/facebook/bart-large-cnn",
-      { inputs: text },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
+    const response = await fetch(
+  "https://router.huggingface.co",
+  {
+    headers: { Authorization: `Bearer ${process.env.HF_API_KEY}` },
+    method: "POST",
+    body: JSON.stringify({
+      model: "facebook/bart-large-cnn",
+      inputs: text
+    })
+  }
+);
+
 
     if (response.data.error) {
       return res.status(500).json({ error: response.data.error });
