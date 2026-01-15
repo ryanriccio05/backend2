@@ -23,7 +23,7 @@ app.post("/summarize", async (req, res) => {
     const response = await fetch(
   "https://router.huggingface.co",
   {
-    headers: { Authorization: `Bearer ${process.env.HF_API_KEY}` },
+    headers: { Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}` },
     method: "POST",
     body: JSON.stringify({
       model: "facebook/bart-large-cnn",
