@@ -20,24 +20,22 @@ app.post("/summarize", async (req, res) => {
   }
 
   try {
-    const response = await fetch(
-  "https://router.huggingface.co",
-  {
-    headers: { Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}` },
-    method: "POST",
-    body: JSON.stringify({
-      model: "facebook/bart-large-cnn",
-      inputs: text
-    })
-  }
-);
+    const response = await fetch("https://router.huggingface.co", {
+      headers: { Authorization: `Bearer ${process.env.HF_API_KEY}` },
+      method: "POST",
+      body: JSON.stringify({
+        model: "facebook/bart-large-cnn",
+        inputs: text
+      })
+    });
 
+    const data = await response.json();
 
-    if (response.data.error) {
-      return res.status(500).json({ error: response.data.error });
+    if (data.error) {
+      return res.status(500).json({ error: data.error });
     }
 
-    res.json({ summary: response.data[0].summary_text });
+    res.json({ summary: data[0].summary_text });
   } catch (error) {
     console.error("Error summarizing text:", error.message);
     res.status(500).json({ error: "Failed to summarize text." });
