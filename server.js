@@ -1,63 +1,61 @@
 require("dotenv").config();
 const express = require("express");
-const bodyParser = require("body-parser");
 const cors = require("cors");
 
 const app = express();
-const PORT = process.env.PORT || 5000;
-
-// Middleware
 app.use(cors());
-app.use(bodyParser.json());
+app.use(express.json());
 
-// Route to handle text summarization
 app.post("/summarize", async (req, res) => {
   const { text } = req.body;
 
   if (!text) {
-    return res.status(400).json({ error: "Text is required for summarization." });
+    return res.status(400).json({ error: "Text is required." });
   }
 
   try {
     const response = await fetch("https://router.huggingface.co", {
-      headers: { Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}` },
       method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
+        "Content-Type": "application/json"
+      },
       body: JSON.stringify({
-        model: "sshleifer/distilbart-cnn-12-6",   // free summarization model
+        model: "sshleifer/distilbart-cnn-12-6",
         inputs: text
       })
     });
 
-    // If HF returns a non-200 status, read the text safely
+    const raw = await response.text();
+
     if (!response.ok) {
-      const errText = await response.text();
-      return res.status(500).json({ error: `HF error: ${errText}` });
+      return res.status(500).json({ error: "HF error", details: raw });
     }
 
-    const data = await response.json();
-
-    // HF sometimes returns { error: "..." }
-    if (data.error) {
-      return res.status(500).json({ error: data.error });
+    let data;
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      return res.status(500).json({ error: "HF returned non‑JSON", raw });
     }
 
-    // HF returns an array with summary_text
-    if (Array.isArray(data) && data[0]?.summary_text) {
-      return res.json({ summary: data[0].summary_text });
+    const summary =
+      data?.[0]?.summary_text ||
+      data?.summary_text ||
+      data?.generated_text ||
+      null;
+
+    if (!summary) {
+      return res.status(500).json({ error: "Unexpected HF format", raw: data });
     }
 
-    // Unexpected format fallback
-    return res.status(500).json({
-      error: "Unexpected HF response format",
-      data
-    });
+    res.json({ summary });
 
-  } catch (error) {
-    console.error("Error summarizing text:", error.message);
-    res.status(500).json({ error: "Failed to summarize text." });
+  } catch (err) {
+    res.status(500).json({ error: "Backend failure", details: err.message });
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+app.listen(process.env.PORT || 5000, () =>
+  console.log("Backend running")
+);
